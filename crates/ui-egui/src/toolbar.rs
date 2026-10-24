@@ -2023,6 +2023,13 @@ fn ribbon_contents(app: &mut SolveApp, ui: &mut egui::Ui, shape: RibbonShape) ->
                 let icon_rect =
                     Rect::from_center_size(pos2(br.center().x, whole.top() + if labels { 16.0 } else { button_height / 2.0 }), vec2(side, side));
                 icons::paint_icon(&painter, icon_rect, icon, if info.enabled { 1.0 } else { 0.35 });
+                if app.attention.contains_key(selected.id) {
+                    // In the button's top-right corner, as far from its top and right edges as
+                    // the label is from its sides (the mark reaches 1 px past its target's corner).
+                    let corner = whole.shrink(BUTTON_LABEL_PADDING / 2.0 + 1.0);
+                    crate::ui_kit::attention_mark(&painter, corner, None);
+                    crate::scenario::publish_handle(&format!("attention:{}", selected.id), crate::ui_kit::attention_at(corner));
+                }
                 let tr_label = app.tr_label(info.label).to_string();
                 if !persistent {
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled() && info.enabled, &tr_label));
@@ -2634,6 +2641,10 @@ fn ribbon_tooltip(app: &SolveApp, response: egui::Response, command: &solidcraft
         }
         if let Some(reason) = disabled {
             ui.add(egui::Label::new(egui::RichText::new(app.tr_label(reason)).color(t.text_dim)).wrap());
+        }
+        // What waits for the user, as the button's mark says.
+        if let Some(why) = app.attention.get(command.id) {
+            ui.add(egui::Label::new(egui::RichText::new(why).color(t.warning)).wrap());
         }
     })
 }

@@ -51,6 +51,7 @@ pub(crate) use features_more::{MAX_SKETCH_ID, SidePoint, SketchFrameId, axes_mas
 pub use file::open_steps::OpenSteps;
 pub(crate) use inspect::color_param;
 pub use join_pieces::{Addition, addition};
+pub use parameters_link::{LinkedState, linked_design_states};
 pub use parts::part_length_label;
 pub use sketch::dimension_roles;
 pub(crate) use sketch::face::face_pick_form;
@@ -99,6 +100,7 @@ mod kernel_heal_tests;
 mod panels;
 mod parameter_sweep;
 mod parameters;
+mod parameters_link;
 mod plastic;
 mod print_face;
 mod render;
@@ -366,6 +368,7 @@ pub fn command_specs() -> Vec<&'static CommandSpec> {
     v.extend(script::COMMANDS.iter());
     v.extend(parameters::COMMANDS.iter());
     v.extend(parameter_sweep::COMMANDS.iter());
+    v.extend(parameters_link::COMMANDS.iter());
     v.extend(file::COMMANDS.iter());
     v.extend(print_face::COMMANDS.iter());
     v.extend(metadata::COMMANDS.iter());

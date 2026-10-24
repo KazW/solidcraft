@@ -89,6 +89,7 @@ pub mod motion_play;
 pub mod panels;
 pub mod parameter_sweep;
 pub mod parameters;
+pub mod parameters_link;
 pub mod parts;
 pub mod plastic;
 pub mod point_cloud;

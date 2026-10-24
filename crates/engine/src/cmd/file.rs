@@ -534,6 +534,8 @@ fn read_design(s: &mut Session, path: &str) -> Result<(Document, Option<solidcra
     if let Some(stem) = default_name_for(&doc.name, path) {
         doc.name = stem;
     }
+    // Linked parameters: paths resolved against this file, as the component links are.
+    super::parameters_link::opened(&mut doc, path);
     Ok((doc, saved))
 }
 
@@ -554,10 +556,15 @@ fn opened_design(
     if read_only {
         out["read_only"] = json!(true);
     }
+    let mut warnings = Vec::new();
     // A newer SolidCraft saved it: opened all the same, and the reply says so.
     if let Some(file) = &s.doc.newer_file {
         out["newer_file"] = file.report();
-        out["warnings"] = json!(file.warnings());
+        warnings.extend(file.warnings());
+    }
+    warnings.extend(super::parameters_link::open_warnings(s));
+    if !warnings.is_empty() {
+        out["warnings"] = json!(warnings);
     }
     let now = solidcraft_io::design_lock::now_secs();
     if let Some(lock) = solidcraft_io::design_lock::held_elsewhere(std::path::Path::new(path), now) {
@@ -782,6 +789,9 @@ impl Session {
                 design.to_mut().links = links;
             }
         }
+        if !self.doc.linked_designs.is_empty() {
+            design.to_mut().linked_designs = super::parameters_link::file_form(&self.doc, self.path.as_deref(), path);
+        }
         if !self.visibility.is_empty() {
             design.to_mut().visibility = self.visibility.clone();
         }
@@ -993,7 +1003,7 @@ fn export_to(
         if !bodies.is_empty() {
             return Err(bad(cmd, "design JSON exports the complete document; omit bodies"));
         }
-        solidcraft_io::write_design(&s.design())
+        solidcraft_io::write_design(&s.design_at(Some(path)))
     } else if format == Format::Step && bodies.is_empty() && !s.doc.occurrences.is_empty() {
         solidcraft_io::step_assembly(&s.doc, &s.doc.painted(&s.model.state()), &name)?
     } else {
@@ -1282,6 +1292,10 @@ fn recover(s: &mut Session, p: &Value) -> Result<Value> {
     let dir = recovery_dir(p, cmd)?;
     let id = str_(p, "id").ok_or_else(|| bad(cmd, "`id` is required (see doc.recovery_list)"))?;
     let (mut doc, entry) = crate::recovery::load(&dir, id)?;
+    // Recovery copies keep linked designs as resolved; a path relative to the design still works.
+    if let Some(path) = entry.path.as_deref() {
+        super::parameters_link::opened(&mut doc, path);
+    }
     if let Some(stem) = entry.path.as_deref().and_then(|path| default_name_for(&doc.name, path)) {
         doc.name = stem;
     }

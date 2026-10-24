@@ -619,7 +619,8 @@ pub struct ParamListKeys {
     #[serde(default, deserialize_with = "list_favorites")]
     pub favorites: Option<bool>,
     /// Which parameters, ignoring case: `all`, `user`, `sketch` (dimensions), `feature` (inputs),
-    /// `model` (every one but the user's) or `favorites`. Anything else lists all. Default: all.
+    /// `linked` (from linked designs), `model` (sketch dimensions and feature inputs) or
+    /// `favorites`. Anything else lists all. Default: all.
     #[serde(default, deserialize_with = "list_filter")]
     pub filter: Option<String>,
 }
@@ -675,11 +676,15 @@ pub struct ParameterRow {
     /// Why it can't be worked out, when it can't.
     pub error: Option<String>,
     pub comment: String,
-    /// `user`, `sketch` (a dimension) or `feature` (a feature's named input).
+    /// `user`, `sketch` (a dimension), `feature` (a feature's named input) or `linked` (a user
+    /// parameter of a linked design: read-only here).
     pub source: String,
     /// For a feature input: the feature.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feature: Option<String>,
+    /// For a linked parameter: the linked design's file (resolved).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub design: Option<String>,
     /// For a feature input: the input's label.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<String>,
@@ -705,6 +710,7 @@ impl From<ParamRow> for ParameterRow {
             comment: r.comment,
             source: r.source.to_string(),
             feature: r.feature,
+            design: r.design,
             input: r.input.map(str::to_string),
             favorite: r.favorite,
             uses: r.uses,

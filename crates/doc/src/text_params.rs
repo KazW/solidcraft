@@ -307,6 +307,9 @@ impl Document {
             }
             return Ok(());
         }
+        if let Some(crate::params::Owner::Linked { design, .. }) = self.owner(name) {
+            return Err(crate::params::linked_refusal(name, design));
+        }
         if self.name_taken(name) {
             return Err(DocError::Invalid(format!("`{name}` is a number parameter")));
         }
