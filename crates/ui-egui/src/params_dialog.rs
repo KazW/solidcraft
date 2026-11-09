@@ -144,12 +144,13 @@ impl Row {
     }
 }
 
-/// A linked design, as `parameters.links` lists it.
+/// A linked design, as the watch's last check found it.
 #[derive(Clone, Debug, Default)]
 struct Linked {
     /// Its file (as resolved).
     file: String,
-    /// `up_to_date`, `out_of_date`, `missing`, `unreadable` or `not_allowed`.
+    /// `up_to_date`, `out_of_date`, `missing`, `unreadable` or `not_allowed`; empty until the
+    /// first check is back.
     state: String,
 }
 
@@ -181,10 +182,19 @@ pub(crate) fn state_message(state: &str) -> &'static str {
     }
 }
 
-fn linked(app: &mut SolveApp) -> Vec<Linked> {
-    let list = app.session.execute("parameters.links", &json!({})).unwrap_or_default();
-    let s = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
-    list["designs"].as_array().into_iter().flatten().map(|x| Linked { file: s(x, "file"), state: s(x, "state") }).collect()
+/// The linked designs with where each stands, from the watch's last check (its own thread reads
+/// the files; the window never does). Until the check has come back a design has no state.
+fn linked(app: &SolveApp) -> Vec<Linked> {
+    let states = &app.linked_watch.states;
+    app.session
+        .doc
+        .linked_designs
+        .iter()
+        .map(|x| match states.iter().find(|s| s.file == x.path) {
+            Some(s) => Linked { file: s.file.clone(), state: s.state.word().to_string() },
+            None => Linked { file: x.path.clone(), state: String::new() },
+        })
+        .collect()
 }
 
 fn rows(app: &mut SolveApp) -> Vec<Row> {
@@ -526,8 +536,10 @@ fn model_group(app: &mut SolveApp, ui: &mut egui::Ui, d: &mut ParamsDialog, grou
 /// A linked design's state and its Update, Relink and Break Link buttons, above its parameters.
 fn linked_design(app: &mut SolveApp, ui: &mut egui::Ui, d: &mut ParamsDialog, design: &Linked) {
     // Anything but up to date needs a look: the values in use are not the file's.
-    let kind = if design.state == "up_to_date" { ui_kit::Text::Hint("link_status") } else { ui_kit::Text::Error("link_status") };
-    ui_kit::text(ui, solidcraft_ui_text::tr(design.state_message()), kind).on_hover_text(&design.file);
+    if !design.state.is_empty() {
+        let kind = if design.state == "up_to_date" { ui_kit::Text::Hint("link_status") } else { ui_kit::Text::Error("link_status") };
+        ui_kit::text(ui, solidcraft_ui_text::tr(design.state_message()), kind).on_hover_text(&design.file);
+    }
     ui.horizontal_wrapped(|ui| {
         let update = ui_kit::icon_label_button(ui, solidcraft_ui_text::tr("parameters.link_update"), "update", true, false)
             .on_hover_text(solidcraft_ui_text::tr("parameters.link_update_tip"));
@@ -2075,7 +2087,15 @@ mod tests {
         h.app.run("parameters.link_design", json!({"path": file, "scope": "all"})).unwrap();
         let source = h.app.session.doc.linked_designs[0].path.clone();
         h.step(&json!({"start": "parameters.change"})).unwrap();
-        h.frames(4);
+        // The watch's own thread reads the file; the window lists its answer once it is back.
+        for _ in 0..500 {
+            h.frames(1);
+            if h.app.params.as_ref().is_some_and(|d| d.linked.iter().all(|x| !x.state.is_empty())) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        h.frames(2);
         let d = h.app.params.as_ref().unwrap();
         assert_eq!(d.linked.iter().map(|x| (x.title(), x.state.as_str())).collect::<Vec<_>>(), [("standard", "up_to_date")]);
         // Typing into a linked row edits nothing.

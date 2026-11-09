@@ -29,6 +29,8 @@ pub struct LinkedWatch {
     stamps: Vec<Stamp>,
     next_poll: Option<web_time::Instant>,
     job: Option<std::sync::mpsc::Receiver<(Vec<Stamp>, Option<Vec<LinkedState>>)>>,
+    /// Where each linked design stands, as last worked out: what the Parameters window lists.
+    pub states: Vec<LinkedState>,
     /// The linked designs that need attention, as last worked out.
     pub stale: Vec<LinkedState>,
     /// How many times the files were read and compared (for the tests).
@@ -67,9 +69,9 @@ pub fn step(app: &mut SolveApp, ctx: &egui::Context) {
                     w.stamps = stamps;
                     if let Some(states) = states {
                         w.reads += 1;
-                        let stale: Vec<LinkedState> = states.into_iter().filter(LinkedState::needs_attention).collect();
-                        if stale != w.stale {
-                            w.stale = stale;
+                        w.stale = states.iter().filter(|s| s.needs_attention()).cloned().collect();
+                        if states != w.states {
+                            w.states = states;
                             // The Parameters window lists the states again.
                             if let Some(d) = app.params.as_mut() {
                                 d.relist();
@@ -87,6 +89,7 @@ pub fn step(app: &mut SolveApp, ctx: &egui::Context) {
         if designs.is_empty() {
             w.checked.clear();
             w.stamps.clear();
+            w.states.clear();
             w.stale.clear();
         } else {
             let now = web_time::Instant::now();
