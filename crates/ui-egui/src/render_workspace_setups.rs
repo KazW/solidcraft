@@ -483,6 +483,7 @@ pub(super) fn same_model_source(app: &SolveApp, document: &std::sync::Weak<solid
         browser_order,
         named_views,
         visibility,
+        linked_designs,
     )
 }
 
