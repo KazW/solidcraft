@@ -10,6 +10,7 @@
 
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use solidcraft_doc::ParamScope;
 use solidcraft_doc::linked::{LinkedChange, ValueChange};
 
@@ -21,6 +22,10 @@ use crate::cmd::LinkState;
 /// the type.
 fn path_only_required(schema: &mut Schema) {
     require(schema, "path");
+    // The type's `default` for an absent `scope` is null, which the text doesn't take.
+    if let Some(Value::Object(scope)) = schema.get_mut("properties").and_then(|p| p.get_mut("scope")) {
+        scope.insert("default".into(), "all".into());
+    }
 }
 
 /// The `scope` text as the handler reads it: any case, with the US and UK spellings of
@@ -28,8 +33,7 @@ fn path_only_required(schema: &mut Schema) {
 fn scope_schema(_: &mut SchemaGenerator) -> Schema {
     json_schema!({
         "description": "Which of the design's user parameters come in, ignoring case: `all` or `favorites` (also spelt `favourites`, `favorite`, `favourite`). Default: all.",
-        "type": "string",
-        "default": "all"
+        "type": "string"
     })
 }
 
@@ -72,6 +76,7 @@ pub struct LinkDesignParams {
     #[schemars(schema_with = "link_path_schema")]
     pub path: Option<String>,
     /// Which of its user parameters come in: `all` or `favorites`. Default: all.
+    #[serde(default)]
     #[schemars(schema_with = "scope_schema")]
     pub scope: Option<String>,
 }
