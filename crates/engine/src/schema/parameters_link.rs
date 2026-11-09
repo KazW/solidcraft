@@ -28,8 +28,17 @@ fn path_only_required(schema: &mut Schema) {
 fn scope_schema(_: &mut SchemaGenerator) -> Schema {
     json_schema!({
         "description": "Which of the design's user parameters come in, ignoring case: `all` or `favorites` (also spelt `favourites`, `favorite`, `favourite`). Default: all.",
-        "type": "string"
+        "type": "string",
+        "default": "all"
     })
+}
+
+/// `path` as the shared schema has it, and at least one character: the handler refuses an
+/// empty path.
+fn link_path_schema(g: &mut SchemaGenerator) -> Schema {
+    let mut schema = path_schema(g);
+    schema.insert("minLength".into(), 1.into());
+    schema
 }
 
 /// Which of a linked design's user parameters come in.
@@ -60,10 +69,9 @@ pub struct LinkDesignParams {
     // Optional in the type and required in the schema (`path_only_required`).
     /// The design (`.sc`) whose user parameters come in, by file path.
     #[serde(default, deserialize_with = "path_required", skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "path_schema")]
+    #[schemars(schema_with = "link_path_schema")]
     pub path: Option<String>,
     /// Which of its user parameters come in: `all` or `favorites`. Default: all.
-    #[serde(default)]
     #[schemars(schema_with = "scope_schema")]
     pub scope: Option<String>,
 }
@@ -172,7 +180,7 @@ pub struct RelinkParams {
     // Optional in the type and required in the schema (`path_only_required`).
     /// The design (`.sc`) to read instead, by file path.
     #[serde(default, deserialize_with = "path_required", skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "path_schema")]
+    #[schemars(schema_with = "link_path_schema")]
     pub path: Option<String>,
 }
 

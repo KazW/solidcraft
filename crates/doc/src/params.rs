@@ -378,7 +378,9 @@ impl Document {
             if !names.insert(name.clone()) {
                 return Err(DocError::Invalid(format!("duplicate parameter `{name}`")));
             }
-            self.editable(name)?;
+            if self.text_param(name).is_none() {
+                self.editable(name)?;
+            }
             if expression.len() > 4096 || expression.trim().is_empty() {
                 return Err(DocError::Expr("expression is empty or too long".into()));
             }
